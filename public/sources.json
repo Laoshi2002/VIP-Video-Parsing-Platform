@@ -1,0 +1,14 @@
+{
+  "remoteSourceUrl": "",
+  "cmsSources": [
+    { "id": "ffzy", "name": "非凡资源", "api": "https://api.ffzyapi.com/api.php/provide/vod" },
+    { "id": "bfzy", "name": "暴风资源", "api": "https://bfzyapi.com/api.php/provide/vod" },
+    { "id": "360zy", "name": "360资源", "api": "https://360zy.com/api.php/provide/vod" },
+    { "id": "wolong", "name": "卧龙资源", "api": "https://api.wolongzy.cc/api.php/provide/vod" }
+  ],
+  "parseApis": [
+    { "name": "线路1", "url": "https://jx.aidouer.net/?url=" },
+    { "name": "线路2", "url": "https://www.yemu.xyz/?url=" },
+    { "name": "线路3", "url": "https://jx.playerjy.com/?url=" }
+  ]
+}
