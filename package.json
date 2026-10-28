@@ -1,0 +1,12 @@
+{
+  "name": "vip-video-platform",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "dev": "wrangler pages dev public"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}
