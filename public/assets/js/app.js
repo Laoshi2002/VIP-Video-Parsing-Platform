@@ -75,14 +75,114 @@
     }).join('')}</div>`;
   }
 
-  // ---------- 播放页（Task 8 实现）----------
-  function renderPlay() { $view.innerHTML = `<p class="msg">播放页建设中</p>`; }
+  // ---------- 播放页 ----------
+  let player = null;        // hls 实例
+  let currentPlay = null;   // { detail, epIndex, alts, sourceId, vodId }
+  let playRetried = false;
+
+  function findAlternatives(name, year) {
+    const hit = lastResults.find(v => v.name === name && v.year === year);
+    return hit ? hit.sources : [];
+  }
+
+  async function renderPlay(params) {
+    const sourceId = params.get('source') || '';
+    const vodId = params.get('id') || '';
+    const name = params.get('name') || '';
+    const year = params.get('year') || '';
+    $view.innerHTML = `<p class="msg">正在获取片源…</p>`;
+    let data;
+    try { data = await api('/api/detail', { source: sourceId, id: vodId }); }
+    catch { $view.innerHTML = `<p class="msg">获取片源详情失败，<a href="javascript:history.back()">返回换源</a></p>`; return; }
+    if (data.code !== 1 || !data.episodes.length) {
+      $view.innerHTML = `<p class="msg">${esc(data.msg || '该片源暂无可播放剧集')}，<a href="javascript:history.back()">返回换源</a></p>`;
+      return;
+    }
+    const alts = findAlternatives(name, year);
+    const epIndex = Math.min(parseInt(params.get('ep') || '0', 10) || 0, data.episodes.length - 1);
+    currentPlay = { detail: data, epIndex, alts, sourceId, vodId };
+    $view.innerHTML = `
+      <div class="play-wrap">
+        <div class="player-box">
+          <video id="video" controls playsinline></video>
+          <div id="playMsg" class="play-msg" hidden></div>
+        </div>
+        <div class="play-title"><b>${esc(data.name)}</b><span id="epNow"></span></div>
+        ${alts.length > 1 ? `<div class="source-bar">片源：${alts.map(s =>
+          `<button data-source="${esc(s.source_id)}" data-vodid="${esc(s.vod_id)}"
+            ${s.source_id === sourceId ? 'class="on"' : ''}>${esc(s.source_name || s.source_id)}</button>`).join('')}</div>` : ''}
+        <div class="ep-nav">
+          <button id="prevEp">上一集</button><button id="nextEp">下一集</button>
+        </div>
+        <div class="episodes">${data.episodes.map((e, i) =>
+          `<button data-ep="${i}" ${i === epIndex ? 'class="on"' : ''}>${esc(e.name)}</button>`).join('')}</div>
+      </div>`;
+
+    $view.querySelector('.episodes').addEventListener('click', e => {
+      const b = e.target.closest('button[data-ep]');
+      if (b) playEpisode(+b.dataset.ep);
+    });
+    $view.querySelector('.ep-nav').addEventListener('click', e => {
+      if (e.target.id === 'prevEp' && currentPlay.epIndex > 0) playEpisode(currentPlay.epIndex - 1);
+      if (e.target.id === 'nextEp' && currentPlay.epIndex < currentPlay.detail.episodes.length - 1) playEpisode(currentPlay.epIndex + 1);
+    });
+    const sourceBar = $view.querySelector('.source-bar');
+    if (sourceBar) sourceBar.addEventListener('click', e => {
+      const b = e.target.closest('button[data-source]');
+      if (!b || b.dataset.source === sourceId) return;
+      location.hash = `#/play?source=${encodeURIComponent(b.dataset.source)}&id=${encodeURIComponent(b.dataset.vodid)}&name=${encodeURIComponent(name)}&year=${encodeURIComponent(year)}`;
+    });
+
+    playEpisode(epIndex);
+  }
+
+  function showPlayMsg(text) {
+    const el = document.getElementById('playMsg');
+    if (!el) return;
+    el.textContent = text;
+    el.hidden = !text;
+  }
+
+  function startHls(url) {
+    destroyPlayer();
+    const video = document.getElementById('video');
+    if (!video) return;
+    if (window.Hls && window.Hls.isSupported()) {
+      player = new window.Hls();
+      player.on(window.Hls.Events.ERROR, (_, data) => {
+        if (!data.fatal) return;
+        if (!playRetried) { playRetried = true; startHls(url); }
+        else showPlayMsg('播放失败，请尝试切换其他片源');
+      });
+      player.loadSource(url);
+      player.attachMedia(video);
+      video.play().catch(() => {}); // 剧集点击路径有用户手势可直接起播；直链进入时浏览器可能拦截，用户手动点播放即可
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url; // Safari 原生 HLS
+      video.play().catch(() => {});
+    } else {
+      showPlayMsg('当前浏览器不支持 HLS 播放');
+    }
+  }
+
+  function playEpisode(i) {
+    const ep = currentPlay.detail.episodes[i];
+    currentPlay.epIndex = i;
+    playRetried = false;
+    document.getElementById('epNow').textContent = ` · ${ep.name}`;
+    document.querySelectorAll('.episodes button').forEach(b =>
+      b.classList.toggle('on', +b.dataset.ep === i));
+    showPlayMsg('');
+    history.replaceState(null, '', `#/play?source=${encodeURIComponent(currentPlay.sourceId)}&id=${encodeURIComponent(currentPlay.vodId)}&ep=${i}`);
+    startHls(ep.url);
+  }
+
+  function destroyPlayer() {
+    if (player) { player.destroy(); player = null; }
+  }
 
   // ---------- VIP 解析页（Task 9 实现）----------
   function renderParse() { $view.innerHTML = `<p class="msg">解析页建设中</p>`; }
-
-  // ---------- 播放器占位（Task 8 实现）----------
-  function destroyPlayer() {}
 
   router();
 })();
