@@ -181,8 +181,38 @@
     if (player) { player.destroy(); player = null; }
   }
 
-  // ---------- VIP 解析页（Task 9 实现）----------
-  function renderParse() { $view.innerHTML = `<p class="msg">解析页建设中</p>`; }
+  // ---------- VIP 解析页 ----------
+  async function renderParse(params) {
+    const url = params.get('url') || '';
+    let parseApis = [];
+    try { parseApis = (await api('/api/sources', {})).parseApis || []; } catch { /* 走空列表提示 */ }
+    if (!parseApis.length) {
+      $view.innerHTML = `<p class="msg">暂无可用解析线路，<a href="#/">返回首页</a></p>`;
+      return;
+    }
+    let idx = 0;
+    $view.innerHTML = `
+      <div class="play-wrap">
+        <div class="play-title"><b>VIP 链接解析</b><span id="lineNow"></span></div>
+        <div class="player-box"><iframe id="parseFrame" allowfullscreen frameborder="0" referrerpolicy="no-referrer"></iframe></div>
+        <div class="source-bar">线路：<span id="parseBtns" style="display:contents"></span></div>
+        <p class="msg-sub">解析线路由第三方提供，如播放失败请换线路</p>
+      </div>`;
+    const frame = document.getElementById('parseFrame');
+    const apply = () => {
+      frame.src = parseApis[idx].url + encodeURIComponent(url);
+      document.getElementById('lineNow').textContent = ` · ${parseApis[idx].name}`;
+      document.querySelectorAll('#parseBtns button').forEach((b, i) =>
+        b.classList.toggle('on', i === idx));
+    };
+    document.getElementById('parseBtns').innerHTML = parseApis.map((a, i) =>
+      `<button data-i="${i}">${esc(a.name)}</button>`).join('');
+    document.getElementById('parseBtns').addEventListener('click', e => {
+      const b = e.target.closest('button[data-i]');
+      if (b) { idx = +b.dataset.i; apply(); }
+    });
+    apply();
+  }
 
   router();
 })();
