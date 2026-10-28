@@ -7,8 +7,8 @@
     { "id": "wolong", "name": "卧龙资源", "api": "https://api.wolongzy.cc/api.php/provide/vod" }
   ],
   "parseApis": [
-    { "name": "线路1", "url": "https://jx.aidouer.net/?url=" },
-    { "name": "线路2", "url": "https://www.yemu.xyz/?url=" },
-    { "name": "线路3", "url": "https://jx.playerjy.com/?url=" }
+    { "name": "线路1", "url": "https://www.8090g.cn/?url=" },
+    { "name": "线路2", "url": "https://jx.yparse.com/index.php?url=" },
+    { "name": "线路3", "url": "https://www.ckplayer.vip/jiexi/?url=" }
   ]
 }
