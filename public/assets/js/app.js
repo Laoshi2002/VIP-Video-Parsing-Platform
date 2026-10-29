@@ -10,15 +10,8 @@
   const api = (path, params) =>
     fetch(`${path}?${new URLSearchParams(params)}`).then(r => r.json());
 
-  function isVipUrl(text) {
-    try {
-      const host = new URL(text).hostname.replace(/^www\./, '');
-      return window.CONFIG.vipHosts.some(h => host === h || host.endsWith('.' + h));
-    } catch { return false; }
-  }
-
   // ---------- 路由 ----------
-  const routes = { '': renderHome, search: renderSearch, play: renderPlay, parse: renderParse };
+  const routes = { '': renderHome, search: renderSearch, play: renderPlay };
   function router() {
     destroyPlayer();
     const [path, query = ''] = location.hash.slice(2).split('?');
@@ -30,8 +23,7 @@
     e.preventDefault();
     const q = $input.value.trim();
     if (!q) return;
-    if (isVipUrl(q)) location.hash = '#/parse?url=' + encodeURIComponent(q);
-    else location.hash = '#/search?wd=' + encodeURIComponent(q);
+    location.hash = '#/search?wd=' + encodeURIComponent(q);
   });
 
   // ---------- 首页 ----------
@@ -40,7 +32,6 @@
       <section class="hero">
         <h1>搜剧名，免费看全网VIP</h1>
         <p class="hero-sub">聚合全网资源 · 无需下载 · 支持手机与电脑</p>
-        <p class="hero-hint">看指定平台的片子？把腾讯/爱奇艺/优酷的视频链接粘贴到上方搜索框回车，直接解析观看</p>
         <div class="hot">热门：${window.CONFIG.hotKeywords.map(k =>
           `<a href="#/search?wd=${encodeURIComponent(k)}">${esc(k)}</a>`).join('')}</div>
       </section>
@@ -216,39 +207,6 @@
 
   function destroyPlayer() {
     if (player) { player.destroy(); player = null; }
-  }
-
-  // ---------- VIP 解析页 ----------
-  async function renderParse(params) {
-    const url = params.get('url') || '';
-    let parseApis = [];
-    try { parseApis = (await api('/api/sources', {})).parseApis || []; } catch { /* 走空列表提示 */ }
-    if (!parseApis.length) {
-      $view.innerHTML = `<p class="msg">暂无可用解析线路，<a href="#/">返回首页</a></p>`;
-      return;
-    }
-    let idx = 0;
-    $view.innerHTML = `
-      <div class="play-wrap">
-        <div class="play-title"><b>VIP 链接解析</b><span id="lineNow"></span></div>
-        <div class="player-box"><iframe id="parseFrame" allowfullscreen frameborder="0" referrerpolicy="no-referrer"></iframe></div>
-        <div class="source-bar">线路：<span id="parseBtns" style="display:contents"></span></div>
-        <p class="msg-sub">解析线路由第三方提供，如播放失败请换线路</p>
-      </div>`;
-    const frame = document.getElementById('parseFrame');
-    const apply = () => {
-      frame.src = parseApis[idx].url + encodeURIComponent(url);
-      document.getElementById('lineNow').textContent = ` · ${parseApis[idx].name}`;
-      document.querySelectorAll('#parseBtns button').forEach((b, i) =>
-        b.classList.toggle('on', i === idx));
-    };
-    document.getElementById('parseBtns').innerHTML = parseApis.map((a, i) =>
-      `<button data-i="${i}">${esc(a.name)}</button>`).join('');
-    document.getElementById('parseBtns').addEventListener('click', e => {
-      const b = e.target.closest('button[data-i]');
-      if (b) { idx = +b.dataset.i; apply(); }
-    });
-    apply();
   }
 
   router();
