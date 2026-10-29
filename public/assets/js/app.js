@@ -108,6 +108,7 @@
           <div id="playMsg" class="play-msg" hidden></div>
         </div>
         <div class="play-title"><b>${esc(data.name)}</b><span id="epNow"></span></div>
+        <div id="qualityBar" class="source-bar" hidden></div>
         ${alts.length > 1 ? `<div class="source-bar">片源：${alts.map(s =>
           `<button data-source="${esc(s.source_id)}" data-vodid="${esc(s.vod_id)}"
             ${s.source_id === sourceId ? 'class="on"' : ''}>${esc(s.source_name || s.source_id)}</button>`).join('')}</div>` : ''}
@@ -140,6 +141,14 @@
       else v.pause();
     });
 
+    // 画质切换（-1 = 自动）
+    document.getElementById('qualityBar').addEventListener('click', e => {
+      const b = e.target.closest('button[data-q]');
+      if (!b || !player) return;
+      player.currentLevel = +b.dataset.q;
+      document.querySelectorAll('#qualityBar button').forEach(x => x.classList.toggle('on', x === b));
+    });
+
     playEpisode(epIndex);
   }
 
@@ -160,6 +169,16 @@
         if (!data.fatal) return;
         if (!playRetried) { playRetried = true; startHls(url); }
         else showPlayMsg('播放失败，请尝试切换其他片源');
+      });
+      player.on(window.Hls.Events.MANIFEST_PARSED, () => {
+        const bar = document.getElementById('qualityBar');
+        if (!bar) return;
+        const levels = player.levels || [];
+        if (levels.length < 2) { bar.hidden = true; return; }
+        bar.hidden = false;
+        bar.innerHTML = `画质：` + ['<button data-q="-1" class="on">自动</button>']
+          .concat(levels.map((l, i) => `<button data-q="${i}">${l.height ? l.height + 'P' : Math.round(l.bitrate / 1000) + 'k'}</button>`))
+          .join('');
       });
       player.loadSource(url);
       player.attachMedia(video);
