@@ -11,11 +11,16 @@
     fetch(`${path}?${new URLSearchParams(params)}`).then(r => r.json());
 
   // ---------- 路由 ----------
-  const routes = { '': renderHome, search: renderSearch, play: renderPlay };
+  const routes = { '': renderHome, search: renderSearch, play: renderPlay, cat: renderCat };
   function router() {
     destroyPlayer();
     const [path, query = ''] = location.hash.slice(2).split('?');
-    (routes[path] || renderHome)(new URLSearchParams(query));
+    const params = new URLSearchParams(query);
+    (routes[path] || renderHome)(params);
+    document.querySelectorAll('.nav-bar a').forEach(a => {
+      const g = a.dataset.g || '';
+      a.classList.toggle('on', g ? (path === 'cat' && (params.get('g') || '') === g) : path === '');
+    });
   }
   window.addEventListener('hashchange', router);
 
@@ -26,21 +31,114 @@
     location.hash = '#/search?wd=' + encodeURIComponent(q);
   });
 
-  // ---------- 首页 ----------
-  function renderHome() {
+  // ---------- 首页（推荐 + 分类） ----------
+  let homeCache = null;
+  async function getHomeData() {
+    if (homeCache) return homeCache;
+    const [a, b, c] = await Promise.all([
+      api('/api/home', {}).catch(() => ({ code: 0 })),
+      api('/api/home', { t: 31 }).catch(() => ({ code: 0, list: [] })),
+      api('/api/home', { t: 21 }).catch(() => ({ code: 0, list: [] })),
+    ]);
+    homeCache = {
+      code: a.code,
+      categories: a.categories || [],
+      latest: a.latest || [],
+      series: b.list || [],
+      action: c.list || [],
+    };
+    return homeCache;
+  }
+
+  const HOME_SOURCE = 'bfzy';
+  function cardHtml(v) {
+    return `<a class="card" href="#/play?source=${HOME_SOURCE}&id=${encodeURIComponent(v.id)}&name=${encodeURIComponent(v.name)}&year=${encodeURIComponent(v.year)}">
+      <div class="poster">${v.pic ? `<img src="${esc(v.pic)}" loading="lazy" alt="">` : ''}</div>
+      <div class="card-name">${esc(v.name)}</div>
+      <div class="card-remark">${esc(v.remark || v.year || '')}</div>
+    </a>`;
+  }
+
+  function rowHtml(title, items, moreHref) {
+    return `<section class="row">
+      <div class="row-head"><h2>${esc(title)}</h2>${moreHref ? `<a class="more" href="${moreHref}">更多 ›</a>` : ''}</div>
+      <div class="row-items">${items.map(cardHtml).join('')}</div>
+    </section>`;
+  }
+
+  async function renderHome() {
+    $view.innerHTML = `<p class="msg">正在加载推荐…</p>`;
+    const data = await getHomeData();
+    if (data.code !== 1 || !data.latest.length) {
+      $view.innerHTML = `<p class="msg">推荐内容加载失败，<a href="#/">点击重试</a></p>`;
+      return;
+    }
+    const bannerItems = data.latest.filter(v => v.pic).slice(0, 4);
     $view.innerHTML = `
-      <section class="hero">
-        <h1>搜剧名，免费看全网VIP</h1>
-        <p class="hero-sub">聚合全网资源 · 无需下载 · 支持手机与电脑</p>
-        <div class="hot">热门：${window.CONFIG.hotKeywords.map(k =>
-          `<a href="#/search?wd=${encodeURIComponent(k)}">${esc(k)}</a>`).join('')}</div>
+      <section class="banner">
+        ${bannerItems.map((v, i) => `
+        <a class="banner-item${i === 0 ? ' on' : ''}" href="#/play?source=${HOME_SOURCE}&id=${encodeURIComponent(v.id)}&name=${encodeURIComponent(v.name)}&year=${encodeURIComponent(v.year)}" style="background-image:url('${esc(v.pic)}')">
+          <div class="banner-info"><b>${esc(v.name)}</b><span>${esc(v.remark || v.year || '')}</span></div>
+          <img class="banner-poster" src="${esc(v.pic)}" alt="">
+        </a>`).join('')}
+        <div class="banner-dots">${bannerItems.map((_, i) => `<i data-i="${i}"${i === 0 ? ' class="on"' : ''}></i>`).join('')}</div>
       </section>
-      <section class="features">
-        <div class="feature"><b>① 搜索</b><span>输入剧名或电影名</span></div>
-        <div class="feature"><b>② 选片</b><span>多资源站聚合去重</span></div>
-        <div class="feature"><b>③ 播放</b><span>点击剧集自动解析</span></div>
-      </section>`;
-    $input.focus();
+      ${rowHtml('最近更新', data.latest)}
+      ${rowHtml('热播国产剧', data.series, `#/cat?g=${encodeURIComponent('剧集')}&t=31&name=${encodeURIComponent('国产剧')}`)}
+      ${rowHtml('动作电影', data.action, `#/cat?g=${encodeURIComponent('电影')}&t=21&name=${encodeURIComponent('动作片')}`)}`;
+    // 轮播
+    if (bannerItems.length > 1) {
+      let bi = 0;
+      const show = i => {
+        bi = (i + bannerItems.length) % bannerItems.length;
+        document.querySelectorAll('.banner-item').forEach((el, k) => el.classList.toggle('on', k === bi));
+        document.querySelectorAll('.banner-dots i').forEach((el, k) => el.classList.toggle('on', k === bi));
+      };
+      const banner = document.querySelector('.banner');
+      window.clearInterval(window.__bannerTimer);
+      window.__bannerTimer = setInterval(() => show(bi + 1), 6000);
+      banner.addEventListener('click', e => {
+        const d = e.target.closest('.banner-dots i');
+        if (d) { window.clearInterval(window.__bannerTimer); show(+d.dataset.i); }
+      });
+    }
+  }
+
+  // ---------- 分类页 ----------
+  async function renderCat(params) {
+    const g = params.get('g') || '分类';
+    let t = params.get('t') || '';
+    const data = await getHomeData();
+    const group = (data.categories || []).find(c => c.group === g);
+    const subs = group ? group.subs : [];
+    if (!t && subs.length) t = String(subs[0][0]);
+    const curName = params.get('name') || (subs.find(s => String(s[0]) === t) || ['', ''])[1] || g;
+    $view.innerHTML = `
+      <div class="cat-head">
+        <h2>${esc(g)}${curName && curName !== g ? ' · ' + esc(curName) : ''}</h2>
+        ${subs.length ? `<div class="chips">${subs.map(s =>
+          `<a class="chip${String(s[0]) === t ? ' on' : ''}" href="#/cat?g=${encodeURIComponent(g)}&t=${s[0]}&name=${encodeURIComponent(s[1])}">${esc(s[1])}</a>`).join('')}</div>` : ''}
+      </div>
+      <div class="grid" id="catGrid"><p class="msg">加载中…</p></div>
+      <div class="cat-more"><button id="catMore" hidden>加载更多</button></div>`;
+    let pg = 1;
+    const grid = document.getElementById('catGrid');
+    const moreBtn = document.getElementById('catMore');
+    const load = async () => {
+      moreBtn.hidden = true;
+      let d;
+      try { d = await api('/api/home', { t, pg }); }
+      catch { if (pg === 1) grid.innerHTML = `<p class="msg">加载失败，<a href="javascript:location.reload()">重试</a></p>`; return; }
+      if (d.code !== 1 || !d.list.length) {
+        if (pg === 1) grid.innerHTML = `<p class="msg">暂无内容</p>`;
+        return;
+      }
+      grid.innerHTML = (pg === 1 ? '' : grid.innerHTML) + d.list.map(cardHtml).join('');
+      pg += 1;
+      moreBtn.hidden = false;
+    };
+    moreBtn.addEventListener('click', load);
+    await load();
   }
 
   // ---------- 结果页 ----------
