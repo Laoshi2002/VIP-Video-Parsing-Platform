@@ -86,14 +86,24 @@
   }
 
   async function renderPlay(params) {
-    const sourceId = params.get('source') || '';
-    const vodId = params.get('id') || '';
+    let sourceId = params.get('source') || '';
+    let vodId = params.get('id') || '';
     const name = params.get('name') || '';
     const year = params.get('year') || '';
     $view.innerHTML = `<p class="msg">正在获取片源…</p>`;
     let data;
     try { data = await api('/api/detail', { source: sourceId, id: vodId }); }
-    catch { $view.innerHTML = `<p class="msg">获取片源详情失败，<a href="javascript:history.back()">返回换源</a></p>`; return; }
+    catch { data = { code: 0, msg: '' }; }
+    if (data.code !== 1 || !data.episodes.length) {
+      // 当前源无剧集（如收录了条目但没有可播链接）→ 自动尝试同片名的其他片源
+      const others = findAlternatives(name, year).filter(s => s.source_id !== sourceId);
+      for (const s of others) {
+        try {
+          const d2 = await api('/api/detail', { source: s.source_id, id: s.vod_id });
+          if (d2.code === 1 && d2.episodes.length) { data = d2; sourceId = s.source_id; vodId = s.vod_id; break; }
+        } catch { /* 尝试下一个源 */ }
+      }
+    }
     if (data.code !== 1 || !data.episodes.length) {
       $view.innerHTML = `<p class="msg">${esc(data.msg || '该片源暂无可播放剧集')}，<a href="javascript:history.back()">返回换源</a></p>`;
       return;
