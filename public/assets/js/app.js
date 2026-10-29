@@ -40,6 +40,7 @@
       <section class="hero">
         <h1>搜剧名，免费看全网VIP</h1>
         <p class="hero-sub">聚合全网资源 · 无需下载 · 支持手机与电脑</p>
+        <p class="hero-hint">看指定平台的片子？把腾讯/爱奇艺/优酷的视频链接粘贴到上方搜索框回车，直接解析观看</p>
         <div class="hot">热门：${window.CONFIG.hotKeywords.map(k =>
           `<a href="#/search?wd=${encodeURIComponent(k)}">${esc(k)}</a>`).join('')}</div>
       </section>
