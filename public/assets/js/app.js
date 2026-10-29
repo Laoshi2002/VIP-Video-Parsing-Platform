@@ -133,6 +133,13 @@
       location.hash = `#/play?source=${encodeURIComponent(b.dataset.source)}&id=${encodeURIComponent(b.dataset.vodid)}&name=${encodeURIComponent(name)}&year=${encodeURIComponent(year)}`;
     });
 
+    // 点击画面暂停/播放（自动播放被浏览器拦截时，点一下即可开始）
+    document.getElementById('video').addEventListener('click', () => {
+      const v = document.getElementById('video');
+      if (v.paused) v.play().catch(() => {});
+      else v.pause();
+    });
+
     playEpisode(epIndex);
   }
 
