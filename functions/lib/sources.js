@@ -1,4 +1,4 @@
-import builtinSources from '../../public/sources.json';
+import builtinSources from '../../public/sources.json' with { type: 'json' };
 import { fetchWithTimeout } from './aggregate.js';
 
 const CACHE_MS = 5 * 60 * 1000;

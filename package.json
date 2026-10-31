@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "dev": "wrangler pages dev public"
+    "dev": "wrangler dev"
   },
   "devDependencies": {
     "wrangler": "^4"
