@@ -1,9 +1,35 @@
 {
   "remoteSourceUrl": "",
   "cmsSources": [
-    { "id": "ffzy", "name": "非凡资源", "api": "https://api.ffzyapi.com/api.php/provide/vod" },
-    { "id": "bfzy", "name": "暴风资源", "api": "https://bfzyapi.com/api.php/provide/vod" },
-    { "id": "360zy", "name": "360资源", "api": "https://360zy.com/api.php/provide/vod" },
-    { "id": "wolong", "name": "卧龙资源", "api": "https://api.wolongzy.cc/api.php/provide/vod" }
+    {
+      "id": "dytt",
+      "name": "电影天堂",
+      "api": "https://caiji.dyttzyapi.com/api.php/provide/vod"
+    },
+    {
+      "id": "modu",
+      "name": "魔都资源",
+      "api": "https://www.mdzyapi.com/api.php/provide/vod"
+    },
+    {
+      "id": "ffzy",
+      "name": "非凡资源",
+      "api": "https://api.ffzyapi.com/api.php/provide/vod"
+    },
+    {
+      "id": "zuida",
+      "name": "最大资源",
+      "api": "https://api.zuidapi.com/api.php/provide/vod"
+    },
+    {
+      "id": "jisu",
+      "name": "极速资源",
+      "api": "https://jszyapi.com/api.php/provide/vod"
+    },
+    {
+      "id": "lzi",
+      "name": "量子资源",
+      "api": "https://cj.lziapi.com/api.php/provide/vod"
+    }
   ]
 }

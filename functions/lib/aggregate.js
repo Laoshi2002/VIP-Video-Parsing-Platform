@@ -1,4 +1,4 @@
-export async function fetchWithTimeout(url, ms = 5000, fetchImpl = fetch) {
+export async function fetchWithTimeout(url, ms = 5000, fetchImpl = fetch, extraHeaders = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
   try {
@@ -8,6 +8,7 @@ export async function fetchWithTimeout(url, ms = 5000, fetchImpl = fetch) {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
+        ...extraHeaders,
       },
     });
   } finally {

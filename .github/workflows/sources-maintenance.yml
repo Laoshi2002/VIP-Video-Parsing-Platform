@@ -1,0 +1,40 @@
+# 每日自动巡检片源池：实测排名后更新 public/sources.json 并推送（触发 Cloudflare Pages 自动部署）
+name: sources-maintenance
+
+on:
+  schedule:
+    - cron: '0 22 * * *' # UTC 22:00 = 北京时间次日 6:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 巡检片源池
+        run: node tools/probe-sources.mjs --write | tee probe-report.md
+
+      - name: 提交变更（触发自动部署）
+        run: |
+          if git diff --quiet public/sources.json; then
+            echo "片源排名无变化，跳过提交"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add public/sources.json
+            git commit -m "chore: 每日片源巡检自动更新 sources.json"
+            git push
+          fi
+
+      - name: 输出巡检报告
+        if: always()
+        run: cat probe-report.md >> "$GITHUB_STEP_SUMMARY"
