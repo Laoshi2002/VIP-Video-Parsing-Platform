@@ -2,24 +2,19 @@
   "remoteSourceUrl": "",
   "cmsSources": [
     {
-      "id": "dytt",
-      "name": "电影天堂",
-      "api": "https://caiji.dyttzyapi.com/api.php/provide/vod"
-    },
-    {
       "id": "modu",
       "name": "魔都资源",
       "api": "https://www.mdzyapi.com/api.php/provide/vod"
     },
     {
-      "id": "ffzy",
-      "name": "非凡资源",
-      "api": "https://api.ffzyapi.com/api.php/provide/vod"
-    },
-    {
       "id": "zuida",
       "name": "最大资源",
       "api": "https://api.zuidapi.com/api.php/provide/vod"
+    },
+    {
+      "id": "ikun",
+      "name": "iKun资源",
+      "api": "https://ikunzyapi.com/api.php/provide/vod"
     },
     {
       "id": "jisu",
@@ -30,6 +25,11 @@
       "id": "lzi",
       "name": "量子资源",
       "api": "https://cj.lziapi.com/api.php/provide/vod"
+    },
+    {
+      "id": "ruyi",
+      "name": "如意资源",
+      "api": "https://cj.rycjapi.com/api.php/provide/vod"
     }
   ]
 }
