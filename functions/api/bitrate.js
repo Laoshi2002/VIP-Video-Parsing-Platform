@@ -6,7 +6,8 @@ import { json } from '../lib/http.js';
 // 相对地址解析：兼容相对路径（xx.m3u8）、绝对路径（/a/b.m3u8）与完整 URL
 const absUrl = (u, base) => /^https?:\/\//i.test(u) ? u : new URL(u, base).href;
 
-// 测量某片源某集的码率：主清单选最高档实测分片码率（声明 BANDWIDTH 虚标严重，仅作回退）；单码率清单用首个分片 Range 请求估算
+// 测量某片源某集的码率：主清单选最高档实测分片码率（声明 BANDWIDTH 虚标严重，仅作回退）；单码率清单用中段分片 Range 请求估算。
+// 取中段而非首片：首个分片多为极短的头部片段，按其体积估码率会严重偏低
 export async function onRequestGet({ request }) {
   const p = new URL(request.url).searchParams;
   const sourceId = p.get('source');
@@ -47,27 +48,38 @@ export async function onRequestGet({ request }) {
         const varUrl = absUrl(best.uri, epUrl);
         const vText = await (await fetchWithTimeout(varUrl, 5000)).text();
         const vLines = vText.split('\n').map(s => s.trim());
-        const vi = vLines.findIndex(s => s && !s.startsWith('#'));
-        const dur = (vText.match(/EXTINF:([\d.]+)/) || [])[1];
-        if (vi >= 0 && dur) {
-          const seg = vLines[vi];
-          const segUrl = absUrl(seg, varUrl);
+        // 收集 (时长, 分片) 对，取中段分片估算真实码率
+        const segs = [];
+        for (let i = 1; i < vLines.length; i++) {
+          if (!vLines[i] || vLines[i].startsWith('#')) continue;
+          const m = /EXTINF:([\d.]+)/.exec(vLines[i - 1] || '');
+          if (m) segs.push({ dur: parseFloat(m[1]), uri: vLines[i] });
+        }
+        const mid = segs[Math.floor(segs.length / 2)];
+        if (mid && mid.dur > 0) {
+          const segUrl = absUrl(mid.uri, varUrl);
           const segRes = await fetchWithTimeout(segUrl, 5000, fetch, { Range: 'bytes=0-0' });
           const cr = segRes.headers.get('content-range') || '';
           const total = parseInt((cr.match(/\/(\d+)$/) || [])[1] || segRes.headers.get('content-length') || '0', 10);
-          if (total > 0) { kbps = Math.round(total * 8 / parseFloat(dur) / 1000); type = 'measured'; }
+          if (total > 0) { kbps = Math.round(total * 8 / mid.dur / 1000); type = 'measured'; }
         }
       } catch { /* 实测失败回退声明值 */ }
       return json({ code: 1, kbps, resolution: best.res, type }, 120);
     }
-    const dur = (text.match(/EXTINF:([\d.]+)/) || [])[1];
-    const seg = text.split('\n').map(s => s.trim()).find(s => s && !s.startsWith('#'));
-    if (!dur || !seg) return json({ code: 0, msg: '清单格式异常' });
-    const segUrl = absUrl(seg, epUrl);
+    const lines = text.split('\n').map(s => s.trim());
+    const segs = [];
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i] || lines[i].startsWith('#')) continue;
+      const m = /EXTINF:([\d.]+)/.exec(lines[i - 1] || '');
+      if (m) segs.push({ dur: parseFloat(m[1]), uri: lines[i] });
+    }
+    const mid = segs[Math.floor(segs.length / 2)];
+    if (!mid || mid.dur <= 0) return json({ code: 0, msg: '清单格式异常' });
+    const segUrl = absUrl(mid.uri, epUrl);
     const segRes = await fetchWithTimeout(segUrl, 5000, fetch, { Range: 'bytes=0-0' });
     const cr = segRes.headers.get('content-range') || '';
     const total = parseInt((cr.match(/\/(\d+)$/) || [])[1] || segRes.headers.get('content-length') || '0', 10);
-    const kbps = total > 0 ? Math.round(total * 8 / parseFloat(dur) / 1000) : 0;
+    const kbps = total > 0 ? Math.round(total * 8 / mid.dur / 1000) : 0;
     return json({ code: 1, kbps, resolution: '', type: 'media' }, 120);
   } catch {
     return json({ code: 0, msg: '测速失败' });

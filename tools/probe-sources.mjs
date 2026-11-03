@@ -76,7 +76,18 @@ async function segSize(url) {
   return r.cr ? parseInt(r.cr.split('/')[1]) || 0 : parseInt(r.cl) || 0;
 }
 
-// 单源单关键词全链路测量：搜索 -> 详情 -> m3u8 主清单最高档 -> 分片首字节实测码率
+// 收集 (时长, 分片) 对并取中段：首个分片多为极短头部片段，按其体积估码率会严重偏低
+function midSeg(lines) {
+  const segs = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i] || lines[i].startsWith('#')) continue;
+    const m = /#EXTINF:([\d.]+)/.exec(lines[i - 1] || '');
+    if (m) segs.push({ dur: parseFloat(m[1]), uri: lines[i] });
+  }
+  return segs[Math.floor(segs.length / 2)] || null;
+}
+
+// 单源单关键词全链路测量：搜索 -> 详情 -> m3u8 主清单最高档 -> 中段分片实测码率
 async function measure(s, kw) {
   const r1 = await get(`${s.api}?ac=videolist&wd=${encodeURIComponent(kw)}`);
   if (!r1.ok) return { st: '搜索失败:' + (r1.err || r1.status) };
@@ -110,18 +121,17 @@ async function measure(s, kw) {
     const r5 = await get(varUrl);
     if (!r5.ok) return { st: '子清单失败', eps: eps.length, acao };
     const vlines = r5.text.split(/\r?\n/).map(l => l.trim());
-    const vi = vlines.findIndex(l => l && !l.startsWith('#'));
-    if (vi < 1) return { st: '子清单无分片', eps: eps.length, acao };
-    const dur = parseFloat((/#EXTINF:([\d.]+)/.exec(vlines[vi - 1]) || [])[1] || '0');
-    const size = await segSize(new URL(vlines[vi], varUrl).href);
-    return { st: 'OK', kbps: size && dur ? Math.round(size * 8 / dur / 1000) : 0, res: best.res, eps: eps.length, acao };
+    const mid = midSeg(vlines);
+    if (!mid) return { st: '子清单无分片', eps: eps.length, acao };
+    const size = await segSize(new URL(mid.uri, varUrl).href);
+    return { st: 'OK', kbps: size && mid.dur ? Math.round(size * 8 / mid.dur / 1000) : 0, res: best.res, eps: eps.length, acao };
   }
 
   if (r3.text.includes('#EXTINF')) {
-    const idx = lines.findIndex(l => l && !l.startsWith('#'));
-    const dur = parseFloat((/#EXTINF:([\d.]+)/.exec(lines[idx - 1]) || [])[1] || '0');
-    const size = await segSize(new URL(lines[idx], epUrl).href);
-    return { st: 'OK', kbps: size && dur ? Math.round(size * 8 / dur / 1000) : 0, res: '', eps: eps.length, acao };
+    const mid = midSeg(lines);
+    if (!mid) return { st: '清单无分片', eps: eps.length, acao };
+    const size = await segSize(new URL(mid.uri, epUrl).href);
+    return { st: 'OK', kbps: size && mid.dur ? Math.round(size * 8 / mid.dur / 1000) : 0, res: '', eps: eps.length, acao };
   }
 
   return { st: '清单异常', eps: eps.length, acao };
