@@ -7,11 +7,6 @@
       "api": "https://www.mdzyapi.com/api.php/provide/vod"
     },
     {
-      "id": "zuida",
-      "name": "最大资源",
-      "api": "https://api.zuidapi.com/api.php/provide/vod"
-    },
-    {
       "id": "ikun",
       "name": "iKun资源",
       "api": "https://ikunzyapi.com/api.php/provide/vod"
@@ -30,6 +25,11 @@
       "id": "ruyi",
       "name": "如意资源",
       "api": "https://cj.rycjapi.com/api.php/provide/vod"
+    },
+    {
+      "id": "360zy",
+      "name": "360资源",
+      "api": "https://360zy.com/api.php/provide/vod"
     }
   ]
 }
