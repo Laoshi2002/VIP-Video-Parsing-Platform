@@ -741,24 +741,29 @@
     });
 
     playEpisode(epIndex);
-    // 后台测速：自动切换到码率最高的片源（不阻塞起播）
+    // 后台测速：自动切换到画质评分最高（码率×分辨率）的片源（不阻塞起播）
     if (alts.length > 1) autoPickBestSource(alts, epIndex);
   }
 
   const fmtKbps = k => (k >= 1000 ? (k / 1000).toFixed(1) + 'M' : k + 'k');
-  // 对各片源并行测速，择码率最高者自动切换（当前源测不出码率或优势不足 10% 则不动，避免无意义重载）
+  // 画质评分：码率 × min(分辨率高度,1080)/1080 —— 伪1080（如1080x608）码率再高也不如真1080p
+  const qScore = (kbps, res) => {
+    const h = res ? parseInt(res.split('x')[1], 10) || 0 : 0;
+    return kbps * Math.min(h || 1080, 1080) / 1080;
+  };
+  // 对各片源并行测速，择画质评分最高者自动切换（当前源测不出码率或优势不足 10% 则不动，避免无意义重载）
   async function autoPickBestSource(alts, epIndex) {
     const results = await Promise.all(alts.map(async a => {
       try {
         const r = await api('/api/bitrate', { source: a.source_id, id: a.vod_id, ep: epIndex });
-        return { ...a, kbps: r && r.code ? (r.kbps || 0) : 0 };
-      } catch { return { ...a, kbps: 0 }; }
+        return { ...a, kbps: r && r.code ? (r.kbps || 0) : 0, res: r && r.resolution || '' };
+      } catch { return { ...a, kbps: 0, res: '' }; }
     }));
     if (!currentPlay) return;
     const valid = results.filter(r => r.kbps > 0);
     const cur = valid.find(r => r.source_id === currentPlay.sourceId);
     if (!valid.length || !cur) return;
-    const best = valid.reduce((a, b) => (b.kbps > a.kbps ? b : a));
+    const best = valid.reduce((a, b) => (qScore(b.kbps, b.res) > qScore(a.kbps, a.res) ? b : a));
     if (best.source_id === currentPlay.sourceId || best.kbps <= cur.kbps * 1.1) return;
     const v = document.getElementById('video');
     if (v && v.currentTime > 1) sessionStorage.setItem('vph_auto_seek', String(Math.floor(v.currentTime)));
