@@ -164,7 +164,12 @@ async function mapLimit(items, limit, fn) {
 
 const t0 = Date.now();
 const results = await mapLimit(POOL, 6, probeSource);
-const ok = results.filter(r => r.st === 'OK').sort((a, b) => b.kbps - a.kbps);
+// 排序按画质评分：码率 × min(分辨率高度,1080)/1080，伪1080（如1080x608）码率虚高也不该占前排；分辨率未知按码率原值计
+const qScore = r => {
+  const h = r.res ? parseInt(r.res.split('x')[1], 10) || 0 : 0;
+  return r.kbps * Math.min(h || 1080, 1080) / 1080;
+};
+const ok = results.filter(r => r.st === 'OK').sort((a, b) => qScore(b) - qScore(a));
 const fails = results.filter(r => r.st !== 'OK');
 
 let report = `## 片源巡检报告 ${new Date().toISOString()}\n\n`;

@@ -764,7 +764,8 @@
     const cur = valid.find(r => r.source_id === currentPlay.sourceId);
     if (!valid.length || !cur) return;
     const best = valid.reduce((a, b) => (qScore(b.kbps, b.res) > qScore(a.kbps, a.res) ? b : a));
-    if (best.source_id === currentPlay.sourceId || best.kbps <= cur.kbps * 1.1) return;
+    // 阈值同样按画质评分比较：裸码率比较会让伪1080（码率虚高）永远不被切走
+    if (best.source_id === currentPlay.sourceId || qScore(best.kbps, best.res) <= qScore(cur.kbps, cur.res) * 1.1) return;
     const v = document.getElementById('video');
     if (v && v.currentTime > 1) sessionStorage.setItem('vph_auto_seek', String(Math.floor(v.currentTime)));
     showToast(`已自动切换到更高画质片源：${best.source_name || best.source_id}（${fmtKbps(best.kbps)} ≻ ${fmtKbps(cur.kbps)}）`);
