@@ -12,14 +12,9 @@
       "api": "https://jszyapi.com/api.php/provide/vod"
     },
     {
-      "id": "zuida",
-      "name": "最大资源",
-      "api": "https://api.zuidapi.com/api.php/provide/vod"
-    },
-    {
-      "id": "ffzy",
-      "name": "非凡资源",
-      "api": "https://api.ffzyapi.com/api.php/provide/vod"
+      "id": "ikun",
+      "name": "iKun资源",
+      "api": "https://ikunzyapi.com/api.php/provide/vod"
     },
     {
       "id": "hongniu",
@@ -30,6 +25,11 @@
       "id": "hongniu3",
       "name": "红牛资源3",
       "api": "https://www.hongniuzy3.com/api.php/provide/vod"
+    },
+    {
+      "id": "guangsu",
+      "name": "光速资源",
+      "api": "https://api.guangsuapi.com/api.php/provide/vod"
     }
   ]
 }
