@@ -2,11 +2,6 @@
   "remoteSourceUrl": "",
   "cmsSources": [
     {
-      "id": "modu",
-      "name": "魔都资源",
-      "api": "https://www.mdzyapi.com/api.php/provide/vod"
-    },
-    {
       "id": "jisu",
       "name": "极速资源",
       "api": "https://jszyapi.com/api.php/provide/vod"
@@ -25,6 +20,11 @@
       "id": "hongniu3",
       "name": "红牛资源3",
       "api": "https://www.hongniuzy3.com/api.php/provide/vod"
+    },
+    {
+      "id": "guangsu",
+      "name": "光速资源",
+      "api": "https://api.guangsuapi.com/api.php/provide/vod"
     },
     {
       "id": "xinlang",
