@@ -12,6 +12,11 @@
       "api": "https://ikunzyapi.com/api.php/provide/vod"
     },
     {
+      "id": "hongniu",
+      "name": "红牛资源",
+      "api": "https://www.hongniuzy2.com/api.php/provide/vod"
+    },
+    {
       "id": "hongniu3",
       "name": "红牛资源3",
       "api": "https://www.hongniuzy3.com/api.php/provide/vod"
@@ -25,11 +30,6 @@
       "id": "jinying",
       "name": "金鹰资源",
       "api": "https://jinyingzy.com/api.php/provide/vod"
-    },
-    {
-      "id": "ruyi",
-      "name": "如意资源",
-      "api": "https://cj.rycjapi.com/api.php/provide/vod"
     }
   ]
 }
