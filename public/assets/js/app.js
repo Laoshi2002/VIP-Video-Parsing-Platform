@@ -64,6 +64,7 @@
   const routes = { '': renderHome, search: renderSearch, play: renderPlay, cat: renderCat, detail: renderDetail, history: renderHistory };
   function router() {
     destroyPlayer();
+    if (window.VphEnhance) window.VphEnhance.detach();
     stopBannerVideo();
     const [path, query = ''] = location.hash.slice(2).split('?');
     const params = new URLSearchParams(query);
@@ -144,6 +145,7 @@
   const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>';
   const PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3.4v14H7zM13.6 5H17v14h-3.6z"/></svg>';
   const NEXT_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5.5v13l9-6.5zM16.6 5H19v14h-2.6z"/></svg>';
+  const PREV_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 5.5v13l-9-6.5zM5 5h2.4v14H5z"/></svg>';
   const VOL_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h3.6L13 20V4L7.6 9zM15.5 8.6a5 5 0 0 1 0 6.8l1.3 1.3a6.8 6.8 0 0 0 0-9.4z"/></svg>';
   const MUTE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h3.6L13 20V4L7.6 9zM15.2 9.3l1.3-1.3 2 2 2-2 1.3 1.3-2 2 2 2-1.3 1.3-2-2-2 2-1.3-1.3 2-2z"/></svg>';
   const FULL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
@@ -499,6 +501,11 @@
       tm.textContent = `${fmt(c)} / ${fmt(d)}`;
       pl.style.width = d ? `${(c / d) * 100}%` : '0%';
       sp.textContent = playerRate === 1 ? '倍速' : playerRate + 'x';
+      const pv = $('puPrevEp'), nx = $('puNextEp');
+      if (pv && nx && currentPlay) {
+        pv.disabled = currentPlay.epIndex <= 0;
+        nx.disabled = currentPlay.epIndex >= currentPlay.detail.episodes.length - 1;
+      }
       if (qb.dataset.single && video.videoHeight) { // 单画质片源：按真实分辨率标注档位（横版按宽度判定）
         const w = video.videoWidth, h = video.videoHeight;
         const wRef = w >= h ? w : Math.round(h * 16 / 9);
@@ -514,8 +521,16 @@
       } catch {}
     });
 
-    // 点击画面暂停/播放；1 秒意图锁定，防内嵌浏览器原生切换干扰
+    // 缓冲/加载指示：起播与卡顿转圈，可播后隐藏
+    const loading = $('puLoading');
+    const setLoading = on => { if (loading) loading.hidden = !on; };
+    ['loadstart', 'waiting'].forEach(ev => video.addEventListener(ev, () => setLoading(true)));
+    ['playing', 'canplay', 'seeked'].forEach(ev => video.addEventListener(ev, () => setLoading(false)));
+    video.addEventListener('error', () => setLoading(false));
+
+    // 点击画面：鼠标暂停/播放；触摸端轻点只唤出控制层（暂停走播放按钮，避免误触）
     let reconcileTimer = 0;
+    let lastPtr = 'mouse';
     const togglePlay = () => {
       window.clearTimeout(reconcileTimer);
       if (video.paused) {
@@ -529,7 +544,11 @@
       }
       sync();
     };
-    video.addEventListener('click', e => { e.preventDefault(); togglePlay(); });
+    video.addEventListener('click', e => {
+      e.preventDefault();
+      if (lastPtr === 'mouse') togglePlay();
+      else wake();
+    });
     $('puBig').addEventListener('click', togglePlay);
     $('puPlay').addEventListener('click', togglePlay);
 
@@ -611,23 +630,27 @@
       else if (box.requestFullscreen) box.requestFullscreen().catch(() => {});
       else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
     });
-    video.addEventListener('dblclick', () => $('puFull').click()); // 双击全屏（腾讯式）
+    video.addEventListener('dblclick', () => { if (lastPtr === 'mouse') $('puFull').click(); }); // 双击全屏（仅鼠标，避免触摸双点误触）
 
-    // 底部"下一集"
+    // 底部"上一集/下一集"
+    $('puPrevEp').addEventListener('click', () => {
+      if (currentPlay && currentPlay.epIndex > 0) playEpisode(currentPlay.epIndex - 1);
+    });
     $('puNextEp').addEventListener('click', () => {
       if (currentPlay && currentPlay.epIndex < currentPlay.detail.episodes.length - 1) playEpisode(currentPlay.epIndex + 1);
     });
 
-    // 控制层自动隐藏（播放中 2.5 秒无操作隐藏，暂停时常显）
+    // 控制层自动隐藏（播放中无操作隐藏，暂停时常显；触摸端停留稍久）
     let hideTimer = 0;
+    const hideDelay = window.matchMedia('(hover: none)').matches ? 3500 : 2500;
     const wake = () => {
       ui.classList.remove('hide');
       window.clearTimeout(hideTimer);
-      hideTimer = window.setTimeout(() => { if (!video.paused && !dragging) ui.classList.add('hide'); }, 2500);
+      hideTimer = window.setTimeout(() => { if (!video.paused && !dragging) ui.classList.add('hide'); }, hideDelay);
     };
     box.addEventListener('pointermove', wake);
-    box.addEventListener('pointerdown', wake);
-    box.addEventListener('pointerleave', () => { if (!video.paused) ui.classList.add('hide'); });
+    box.addEventListener('pointerdown', e => { lastPtr = e.pointerType || 'mouse'; wake(); });
+    box.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !video.paused) ui.classList.add('hide'); });
     video.addEventListener('play', wake);
     video.addEventListener('pause', wake);
     wake();
@@ -636,7 +659,6 @@
     sync();
     syncVol();
   }
-
   async function renderPlay(params) {
     let sourceId = params.get('source') || '';
     let vodId = params.get('id') || '';
@@ -665,6 +687,7 @@
         <div class="player-box" id="playerBox">
           <video id="video" playsinline></video>
           <div id="playMsg" class="play-msg" hidden></div>
+          <div class="pu-loading" id="puLoading" hidden></div>
           <div class="player-ui" id="playerUI">
             <div class="pu-flash" id="puFlash"></div>
             <button id="puBig" class="pu-big" type="button" aria-label="播放">${PLAY_SVG}</button>
@@ -675,6 +698,7 @@
               </div>
               <div class="pu-bar">
                 <button id="puPlay" type="button" aria-label="播放/暂停">${PLAY_SVG}</button>
+                <button id="puPrevEp" type="button" aria-label="上一集">${PREV_SVG}</button>
                 <button id="puNextEp" type="button" aria-label="下一集">${NEXT_SVG}</button>
                 <span class="pu-time" id="puTime">00:00 / 00:00</span>
                 <span class="pu-spacer"></span>
@@ -816,6 +840,7 @@
     destroyPlayer();
     const video = document.getElementById('video');
     if (!video) return;
+    if (window.VphEnhance) window.VphEnhance.attach(video);
     if (window.Hls && window.Hls.isSupported()) {
       player = new window.Hls();
       player.on(window.Hls.Events.ERROR, (_, data) => {
