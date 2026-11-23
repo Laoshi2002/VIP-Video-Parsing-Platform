@@ -110,6 +110,8 @@ html[data-theme="light"] .chip.on, html[data-theme="light"] .chip:hover { color:
 .ghost-btn:hover { color: var(--txt); }
 
 .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+/* 网格子项默认 min-width:auto 会被内容撑破，导致列宽不均，强制归零让 1fr 均分 */
+.grid > * { min-width: 0; }
 .card { display: block; transition: transform .25s; }
 .card:hover { transform: translateY(-4px); }
 .card .poster { aspect-ratio: 2 / 3; background: var(--bg2); border-radius: 12px; overflow: hidden; position: relative; box-shadow: var(--shadow-sm); transition: box-shadow .25s; }
